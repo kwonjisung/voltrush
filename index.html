@@ -264,39 +264,8 @@ h2{font-family:var(--f-display);font-weight:400;font-size:clamp(30px,6vw,48px);m
 .headrow{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:end;gap:12px}
 .mhead h1{font-size:clamp(32px,6vw,58px)}
 .mhead .sub{margin:0}
-.lsw{display:flex;flex-wrap:wrap;align-items:center;gap:6px}
-.lswl{font-size:11px;color:var(--mute);letter-spacing:.08em;margin-right:2px}
-.lsw button{background:rgba(255,255,255,.05);border:1px solid var(--line);border-radius:10px;padding:6px 10px;font-size:12.5px;font-weight:600;cursor:pointer;display:flex;gap:6px;align-items:center}
-.lsw button b{font-family:var(--f-num);color:var(--mute)}
-.lsw button[aria-pressed="true"]{border-color:var(--volt);background:rgba(255,210,63,.12);color:var(--volt)}
-.lsw button[aria-pressed="true"] b{color:var(--volt)}
 .rdetail{display:none}
 .menuwrap>.card{width:auto}
-
-/* A — compact: one row of six smaller cards (≈80% of the old height) */
-.menuwrap[data-layout="a"] .grid{grid-template-columns:repeat(6,minmax(0,1fr));gap:8px}
-.menuwrap[data-layout="a"] .rcard{padding:8px 8px 10px;gap:4px;border-radius:14px}
-.menuwrap[data-layout="a"] .rcard svg{height:54px}
-.menuwrap[data-layout="a"] .rname{font-size:19px}
-.menuwrap[data-layout="a"] .rtag{font-size:10.5px}
-.menuwrap[data-layout="a"] .stat{grid-template-columns:34px 1fr;font-size:10px}
-.menuwrap[data-layout="a"] .bar i{height:5px}
-@media (max-width:640px){.menuwrap[data-layout="a"] .grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
-
-/* B — split: robot list on the left, course + start on the right */
-.menuwrap[data-layout="b"] .grid{grid-template-columns:1fr;gap:6px}
-.menuwrap[data-layout="b"] .rcard{grid-template-columns:46px minmax(0,1fr) 96px;grid-template-rows:auto auto auto;column-gap:10px;row-gap:2px;align-items:center;padding:6px 10px;border-radius:12px}
-.menuwrap[data-layout="b"] .rcard svg{grid-row:1/4;width:46px;height:44px}
-.menuwrap[data-layout="b"] .rname{grid-column:2;grid-row:1/3;font-size:19px;align-self:end}
-.menuwrap[data-layout="b"] .rtag{grid-column:2;grid-row:3;align-self:start}
-.menuwrap[data-layout="b"] .stat{grid-column:3;grid-template-columns:30px 1fr;font-size:9.5px;gap:4px}
-.menuwrap[data-layout="b"] .bar i{height:4px}
-@media (min-width:780px){
-  .menuwrap[data-layout="b"]{width:min(1100px,100%);grid-template-columns:300px minmax(0,1fr);grid-template-areas:"head head" "robots stage" "robots foot";align-items:start}
-  .menuwrap[data-layout="b"] .stage{--sw:min(470px,46vw)}
-  .menuwrap[data-layout="b"] .items{grid-template-columns:repeat(2,minmax(0,1fr))}
-}
-@media (max-width:779px){.menuwrap[data-layout="b"] .grid{grid-template-columns:repeat(2,minmax(0,1fr))}.menuwrap[data-layout="b"] .rcard{grid-template-columns:40px minmax(0,1fr)}.menuwrap[data-layout="b"] .stat{display:none}.menuwrap[data-layout="b"] .rcard svg{width:40px}}
 
 /* C — course first: live preview leads, robots shrink to a dock with one detail strip */
 .menuwrap[data-layout="c"]{grid-template-areas:"head" "stage" "robots" "foot"}
@@ -405,18 +374,12 @@ td.tm small{color:var(--mute);font-family:var(--f-body)}
   </div>
 
   <div class="overlay" id="menu" hidden>
-    <div class="menuwrap" id="menuwrap" data-layout="a">
+    <div class="menuwrap" id="menuwrap" data-layout="c">
       <div class="card mhead">
         <div class="headrow">
           <div>
             <div class="eyebrow" id="menuEyebrow">볼트밸리 서킷 · 3랩 · 6대 출전</div>
             <h1 class="mlogo"><span class="lg">VOLT<b>RUSH</b></span><span class="gpb">GP</span></h1>
-          </div>
-          <div class="lsw" role="group" aria-label="레이아웃 시안">
-            <span class="lswl">레이아웃 시안</span>
-            <button id="lay-a" data-l="a" aria-pressed="true"><b>A</b>컴팩트</button>
-            <button id="lay-b" data-l="b" aria-pressed="false"><b>B</b>좌우 분할</button>
-            <button id="lay-c" data-l="c" aria-pressed="false"><b>C</b>코스 중심</button>
           </div>
         </div>
         <p class="sub">로봇과 코스를 골라 세 바퀴 달리세요. 드리프트로 불꽃을 모아 가속하고, 에너지 큐브에서 나온 장치로 경쟁 로봇을 따돌리면 됩니다.</p>
@@ -536,10 +499,6 @@ function renderRobots(){
   {const r=ROBOTS[pick];$('#rdetail').innerHTML=`<span class="dn" style="color:${r.color}">${r.name}</span><span class="dt">${r.tag}</span><span class="grow"></span><span class="stat">속도${segs((r.spd-39.5)/6)}</span><span class="stat">가속${segs((r.acc-15.5)/12.5)}</span><span class="stat">핸들링${segs((r.hnd-1.7)/0.65)}</span>`}
   document.querySelectorAll('.rcard').forEach(b=>b.onclick=()=>{pick=+b.dataset.i;store.set('rk_pick',pick);renderRobots();renderCourses();buildDemo();beep(660,.08,'square',.05)});
 }
-let layout=store.get('rk_layout')||'a';if(!['a','b','c'].includes(layout))layout='a';
-function setLayout(l){layout=l;store.set('rk_layout',l);if(!document.documentElement.classList.contains('mobile'))$('#menuwrap').dataset.layout=l;document.querySelectorAll('.lsw button').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.l===l)))}
-document.querySelectorAll('.lsw button').forEach(b=>b.onclick=()=>setLayout(b.dataset.l));
-setLayout(layout);
 renderRobots();
 $('#itemHelp').innerHTML=Object.keys(ITEM_INFO).map(k=>`<div class="it">${ICONS[k]}<div><b>${ITEM_INFO[k][0]}</b>${ITEM_INFO[k][1]}</div></div>`).join('');
 
