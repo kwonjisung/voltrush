@@ -133,6 +133,19 @@ h2{font-family:var(--f-display);font-weight:400;font-size:clamp(30px,6vw,48px);m
 .dots i{width:8px;height:8px;border-radius:4px;background:rgba(255,255,255,.28);transition:width .3s,background .3s}
 .dots i.on{background:var(--volt);width:22px}
 @media (prefers-reduced-motion:reduce){.slide{transition:none}}
+/* ===== Analysis screen ===== */
+.azbtn{display:flex;align-items:center;gap:6px;background:rgba(91,227,255,.1);border:1px solid var(--cool);color:var(--cool);border-radius:10px;padding:8px 14px;font-weight:600;font-size:14px;cursor:pointer;align-self:center}
+.azbtn svg{width:16px;height:16px}
+.azbtn:hover{background:rgba(91,227,255,.2)}
+#analysis{z-index:25;background:rgba(10,12,26,.82)}
+.azcard{width:min(1000px,100%);gap:12px}
+.azhead{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
+.aztabs{display:flex;gap:6px;flex-wrap:wrap}
+.aztabs button{background:rgba(255,255,255,.05);border:1px solid var(--line);border-radius:10px;padding:7px 12px;font-weight:600;font-size:13px;cursor:pointer;color:var(--paper)}
+.aztabs button[aria-selected="true"]{border-color:var(--cool);color:var(--cool);background:rgba(91,227,255,.1)}
+.azbody{overflow-x:auto;border-radius:12px;background:#12152A;border:1px solid var(--line)}
+.azbody svg{display:block;width:100%;min-width:760px;height:auto}
+
 /* ===== Menu logo ===== */
 .mlogo{display:flex;align-items:center;gap:10px;font-family:var(--f-logo)!important;font-style:italic;letter-spacing:.01em}
 .mlogo .lg{color:var(--paper)}.mlogo .lg b{color:var(--volt);font-weight:400;margin-left:.18em}
@@ -381,6 +394,7 @@ td.tm small{color:var(--mute);font-family:var(--f-body)}
             <div class="eyebrow" id="menuEyebrow">볼트밸리 서킷 · 3랩 · 6대 출전</div>
             <h1 class="mlogo"><span class="lg">VOLT<b>RUSH</b></span><span class="gpb">GP</span></h1>
           </div>
+          <button class="azbtn" id="azOpenMenu" aria-label="게임 원리 분석 보기"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>분석</button>
         </div>
         <p class="sub">로봇과 코스를 골라 세 바퀴 달리세요. 드리프트로 불꽃을 모아 가속하고, 에너지 큐브에서 나온 장치로 경쟁 로봇을 따돌리면 됩니다.</p>
       </div>
@@ -430,6 +444,7 @@ td.tm small{color:var(--mute);font-family:var(--f-body)}
         <button class="go" id="resumeBtn">계속 달리기</button>
         <button class="ghost" id="restartBtn">다시 시작</button>
         <button class="ghost" id="toMenuBtn">메뉴로</button>
+        <button class="ghost" id="azOpenPause">분석</button>
       </div>
       <div class="btns tiltopts" id="tiltOpts" hidden>
         <button class="ghost" id="tiltBtn" aria-pressed="true">기울기 조향 켜짐</button>
@@ -452,6 +467,20 @@ td.tm small{color:var(--mute);font-family:var(--f-body)}
         <button class="ghost" id="nextBtn">다음 코스</button>
         <button class="ghost" id="resMenuBtn">메뉴로</button>
       </div>
+    </div>
+  </div>
+
+  <div class="overlay" id="analysis" hidden role="dialog" aria-label="게임 원리 분석">
+    <div class="card azcard">
+      <div class="azhead">
+        <div>
+          <div class="eyebrow">분석 · 볼트러시 GP는 이렇게 돌아가요</div>
+          <h2>게임 원리 한눈에 보기</h2>
+        </div>
+        <button class="ghost" id="azClose">닫기</button>
+      </div>
+      <div class="aztabs" id="azTabs" role="tablist"></div>
+      <div class="azbody" id="azBody"></div>
     </div>
   </div>
 </div>
@@ -1179,6 +1208,7 @@ function showResults(){
 /* ---------- Input ---------- */
 const KEY={ArrowUp:'gas',KeyW:'gas',ArrowDown:'brake',KeyS:'brake',ArrowLeft:'left',KeyA:'left',ArrowRight:'right',KeyD:'right',Space:'drift',ShiftLeft:'drift',ShiftRight:'drift',KeyX:'item',KeyZ:'item'};
 addEventListener('keydown',e=>{
+  if(!$('#analysis').hidden){if(e.code==='Escape'){e.preventDefault();closeAnalysis()}return}
   if(state==='intro'){e.preventDefault();leaveIntro();return}
   if(state==='menu'&&!$('#menu').hidden&&(e.code==='ArrowLeft'||e.code==='ArrowRight')){selectCourse(cpick+(e.code==='ArrowRight'?1:-1));e.preventDefault();return}
   if(e.code==='Escape'||e.code==='KeyP'){if(state==='race'||state==='countdown')togglePause();return}
@@ -1236,6 +1266,162 @@ const toMenu=()=>{renderCourses();setTimeout(buildDemo,0);clearRace();player=nul
 $('#nextBtn').onclick=()=>{cpick=(cpick+1)%COURSES.length;store.set('rk_course',cpick);renderCourses();startRace()};
 $('#toMenuBtn').onclick=toMenu;$('#resMenuBtn').onclick=toMenu;
 $('#startBtn').onclick=()=>{askMotion();goLandscape();tiltBase=null;startRace()};
+
+/* ---------- 분석 화면: 게임이 돌아가는 원리 ---------- */
+const AZ={paper:'#F4F1FF',mute:'#A9AECF',line:'rgba(244,241,255,.22)',box:'#1B2042',cool:'#5BE3FF',volt:'#FFD23F',hot:'#FF5D3A',green:'#4ADE80',violet:'#B794F6'};
+const esc=t=>String(t).replace(/&/g,'&amp;').replace(/</g,'&lt;');
+function azDefs(){return `<defs>${['cool','volt','hot','mute','green'].map(c=>`<marker id="ah-${c}" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="${AZ[c]}"/></marker>`).join('')}</defs>`}
+function azBox(x,y,w,h,title,sub,c='cool',opt={}){
+  const lines=(sub||'').split('\n');
+  return `<g><rect x="${x}" y="${y}" width="${w}" height="${h}" rx="10" fill="${opt.fill||AZ.box}" stroke="${AZ[c]}" stroke-width="${opt.sw||1.6}"/>
+  <text x="${x+12}" y="${y+22}" fill="${AZ[c]}" font-size="14" font-weight="700">${esc(title)}</text>
+  ${lines.map((l,i)=>`<text x="${x+12}" y="${y+42+i*17}" fill="${AZ.paper}" font-size="12">${esc(l)}</text>`).join('')}</g>`;
+}
+function azArrow(x1,y1,x2,y2,c='mute',label,dash){
+  const mx=(x1+x2)/2,my=(y1+y2)/2;
+  return `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${AZ[c]}" stroke-width="2" ${dash?'stroke-dasharray="5 4"':''} marker-end="url(#ah-${c})"/>${label?`<text x="${mx}" y="${my-6}" fill="${AZ[c]}" font-size="11" text-anchor="middle">${esc(label)}</text>`:''}`;
+}
+function azPath(d,c='mute',label,lx,ly){return `<path d="${d}" fill="none" stroke="${AZ[c]}" stroke-width="2" marker-end="url(#ah-${c})"/>${label?`<text x="${lx}" y="${ly}" fill="${AZ[c]}" font-size="11">${esc(label)}</text>`:''}`}
+function azNote(x,y,t,c='mute',size=12,anchor='start'){return `<text x="${x}" y="${y}" fill="${AZ[c]}" font-size="${size}" text-anchor="${anchor}">${esc(t)}</text>`}
+const azSvg=(inner,h=560)=>`<svg viewBox="0 0 960 ${h}" role="img" font-family="IBM Plex Sans KR, Apple SD Gothic Neo, sans-serif">${azDefs()}${inner}</svg>`;
+
+function azOverview(){
+  let g='';
+  g+=azNote(20,24,'입력','mute',12)+azNote(250,24,'입력 통합','mute',12)+azNote(430,24,'게임 루프 (매 프레임, 초당 약 60번)','mute',12)+azNote(760,24,'출력','mute',12);
+  g+=azBox(20,40,190,62,'키보드','↑↓ 가속·브레이크, ←→ 조향\nSpace 드리프트, X 아이템','cool');
+  g+=azBox(20,118,190,62,'휴대폰 터치','화면 핸들 끌기 → 조향값\n드리프트·아이템 버튼','cool');
+  g+=azBox(20,196,190,62,'기울기 센서 (가능할 때)','https로 연 휴대폰 브라우저\n출발 자세 기준 ±24°','cool');
+  g+=azBox(250,96,150,108,'조작 신호 하나로','조향 −1 ~ +1\n가속 / 브레이크\n드리프트 / 아이템','cool');
+  [71,149,227].forEach(y=>g+=azArrow(210,y,248,y<150?140:y>200?170:150,'cool'));
+  // loop
+  g+=`<rect x="430" y="40" width="300" height="380" rx="14" fill="none" stroke="${AZ.volt}" stroke-width="2" stroke-dasharray="6 5"/>`;
+  const steps=[['① 카트 물리','속도·가속·조향·벽 충돌·풀밭 감속'],['② AI 로봇 판단','5대가 각자 목표점을 보고 조향'],['③ 아이템·충돌','큐브 획득, 드론 추적, 오일, 카트끼리 밀기'],['④ 랩·순위·리타이어','진행도로 순위, 1위 골인 후 30초'],['⑤ 카메라','내 카트 뒤를 부드럽게 따라감']];
+  steps.forEach(([t,s],i)=>g+=azBox(446,54+i*72,268,58,t,s,'volt'));
+  for(let i=0;i<4;i++)g+=azArrow(580,112+i*72,580,124+i*72,'volt');
+  g+=azArrow(400,150,444,150,'cool','매 프레임');
+  g+=azPath('M714 400 C 760 430, 760 20, 714 70','volt');g+=azNote(744,232,'반복','volt',11);
+  // data sources
+  g+=azBox(250,300,170,62,'코스 데이터','제어점 → 640점 트랙\n아이템·패드 자동 배치','green');
+  g+=azBox(250,380,170,62,'로봇 능력치','속도·가속·핸들링\n드리프트·무게 보정','green');
+  g+=azArrow(420,331,444,300,'green');g+=azArrow(420,411,444,330,'green');
+  // outputs
+  const outs=[['3D 화면','three.js · WebGL'],['HUD','랩·순위표·미니맵·아이템'],['소리','Web Audio 합성음'],['기록 저장','브라우저 localStorage\n코스×로봇별 최고 기록']];
+  outs.forEach(([t,s],i)=>{const y=60+i*86;g+=azBox(776,y,170,i===3?70:62,t,s,'hot');g+=azArrow(732,140+i*50,774,y+30,'hot')});
+  g+=`<rect x="20" y="470" width="926" height="62" rx="12" fill="rgba(91,227,255,.08)" stroke="${AZ.line}"/>`;
+  g+=azNote(36,496,'핵심 원리','cool',13);
+  g+=azNote(36,518,'서버나 외부 AI 서비스를 쓰지 않아요. 상대 로봇의 판단, 물리, 순위 계산이 모두 이 페이지 안에서 규칙(코드)으로 매 프레임 계산돼요.','paper',12.5);
+  return azSvg(g,550);
+}
+
+function azTrack(){
+  let g='';
+  const steps=[['1. 제어점',`코스마다 ${course.c.length}개의 점을 손으로 배치`],['2. 부드러운 곡선','Catmull-Rom 곡선으로 점들을 잇기'],['3. 640개 점으로 나누기','같은 간격으로 쪼개 트랙의 “칸”을 만듦'],['4. 방향과 옆방향','각 칸의 진행 방향(T)과 수직 방향(N)'],['5. 도로·연석·벽 만들기',`도로 폭 ${course.W}, 벽은 중심에서 ±${(course.W/2+7).toFixed(0)}`],['6. 내 위치 판정','가장 가까운 칸 + 옆으로 벗어난 거리']];
+  steps.forEach(([t,s],i)=>{g+=azBox(20,30+i*80,300,62,t,s,i<3?'cool':i<5?'volt':'hot');if(i<5)g+=azArrow(170,92+i*80,170,108+i*80,'mute')});
+  // live course drawing
+  const X0=350,Y0=20,WW=590,HH=500;
+  g+=`<rect x="${X0}" y="${Y0}" width="${WW}" height="${HH}" rx="14" fill="rgba(255,255,255,.03)" stroke="${AZ.line}"/>`;
+  g+=azNote(X0+14,Y0+22,`지금 고른 코스: ${course.name} (실제 좌표)`,'paper',13);
+  let x0=1e9,x1=-1e9,z0=1e9,z1=-1e9;P.forEach(p=>{x0=Math.min(x0,p.x);x1=Math.max(x1,p.x);z0=Math.min(z0,p.z);z1=Math.max(z1,p.z)});
+  const pad=40,sc=Math.min((WW-pad*2)/(x1-x0+2*WALL),(HH-pad*2-20)/(z1-z0+2*WALL));
+  const ox=X0+WW/2-(x0+x1)/2*sc*-1,oz=Y0+20+HH/2+(z0+z1)/2*sc;
+  const tx=x=>ox+x*sc*-1,tz=z=>oz-z*sc;
+  const edge=(lat)=>P.map((p,i)=>`${i?'L':'M'}${tx(p.x+Nn[i].x*lat).toFixed(1)} ${tz(p.z+Nn[i].z*lat).toFixed(1)}`).join('')+'Z';
+  g+=`<path d="${edge(W/2)}" fill="none" stroke="${AZ.paper}" stroke-width="1.2" opacity=".7"/><path d="${edge(-W/2)}" fill="none" stroke="${AZ.paper}" stroke-width="1.2" opacity=".7"/>`;
+  g+=`<path d="${edge(WALL)}" fill="none" stroke="${AZ.hot}" stroke-width="1" stroke-dasharray="4 4" opacity=".7"/><path d="${edge(-WALL)}" fill="none" stroke="${AZ.hot}" stroke-width="1" stroke-dasharray="4 4" opacity=".7"/>`;
+  g+=`<path d="${edge(0)}" fill="none" stroke="${AZ.volt}" stroke-width="1.6"/>`;
+  for(let i=0;i<N;i+=16)g+=`<circle cx="${tx(P[i].x).toFixed(1)}" cy="${tz(P[i].z).toFixed(1)}" r="1.6" fill="${AZ.volt}"/>`;
+  course.c.forEach(([cx,cz],k)=>{const x=tx(cx*course.s),y=tz(cz*course.s);g+=`<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="9" fill="${AZ.box}" stroke="${AZ.cool}" stroke-width="1.6"/><text x="${x.toFixed(1)}" y="${(y+4).toFixed(1)}" fill="${AZ.cool}" font-size="10" text-anchor="middle">${k+1}</text>`});
+  // sample normal / tangent
+  let si=0,bestD=-1;for(let i=0;i<N;i+=8){let d=1e9;course.c.forEach(([cx,cz])=>{d=Math.min(d,Math.hypot(P[i].x-cx*course.s,P[i].z-cz*course.s))});d=Math.min(d,i,N-i);if(d>bestD){bestD=d;si=i}}
+  const sp=P[si],len=34/sc;
+  g+=azArrow(tx(sp.x),tz(sp.z),tx(sp.x+T[si].x*len),tz(sp.z+T[si].z*len),'green');
+  g+=azArrow(tx(sp.x),tz(sp.z),tx(sp.x+Nn[si].x*len),tz(sp.z+Nn[si].z*len),'hot');
+  g+=azNote(tx(sp.x+T[si].x*len)+6,tz(sp.z+T[si].z*len),'T 진행 방향','green',11)+azNote(tx(sp.x+Nn[si].x*len)+6,tz(sp.z+Nn[si].z*len)+14,'N 옆방향','hot',11);
+  const sx=tx(P[0].x),sz=tz(P[0].z);g+=`<rect x="${sx-7}" y="${sz-7}" width="14" height="14" fill="${AZ.paper}"/>`+azNote(sx+10,sz-8,'출발선 (칸 0)','paper',11);
+  // legend
+  const ly=Y0+HH-18;
+  g+=`<circle cx="${X0+20}" cy="${ly-4}" r="6" fill="${AZ.box}" stroke="${AZ.cool}"/>`+azNote(X0+32,ly,'제어점','cool',11);
+  g+=`<line x1="${X0+90}" y1="${ly-4}" x2="${X0+116}" y2="${ly-4}" stroke="${AZ.volt}" stroke-width="2"/>`+azNote(X0+122,ly,'중심선(640칸)','volt',11);
+  g+=`<line x1="${X0+220}" y1="${ly-4}" x2="${X0+246}" y2="${ly-4}" stroke="${AZ.paper}"/>`+azNote(X0+252,ly,'도로 가장자리','paper',11);
+  g+=`<line x1="${X0+350}" y1="${ly-4}" x2="${X0+376}" y2="${ly-4}" stroke="${AZ.hot}" stroke-dasharray="4 4"/>`+azNote(X0+382,ly,'벽','hot',11);
+  return azSvg(g,540);
+}
+
+function azAI(){
+  let g='';
+  // scene: curved road with kart, look-ahead target
+  g+=`<rect x="20" y="20" width="430" height="420" rx="14" fill="rgba(255,255,255,.03)" stroke="${AZ.line}"/>`;
+  g+=azNote(36,44,'AI 로봇이 보는 것','paper',13);
+  const road='M60 410 C 120 300, 150 210, 260 150 S 400 90, 430 70';
+  g+=`<path d="${road}" fill="none" stroke="#3A3E50" stroke-width="70" stroke-linecap="round"/><path d="${road}" fill="none" stroke="${AZ.volt}" stroke-width="2" stroke-dasharray="8 8" opacity=".6"/>`;
+  g+=`<g transform="translate(120 330) rotate(-35)"><rect x="-12" y="-18" width="24" height="36" rx="5" fill="${AZ.cool}"/><rect x="-8" y="-14" width="16" height="9" rx="2" fill="#0E1222"/></g>`;
+  g+=azNote(82,378,'AI 카트','cool',12);
+  g+=`<circle cx="300" cy="138" r="9" fill="none" stroke="${AZ.hot}" stroke-width="2.5"/><circle cx="300" cy="138" r="3" fill="${AZ.hot}"/>`;
+  g+=azNote(316,132,'목표점','hot',12)+azNote(316,148,'앞으로 10+속도×0.35칸','mute',11);
+  g+=azArrow(128,314,292,144,'hot');
+  g+=`<line x1="128" y1="314" x2="164" y2="246" stroke="${AZ.green}" stroke-width="2" stroke-dasharray="4 3"/>`;
+  g+=`<path d="M150 272 A 40 40 0 0 1 166 280" fill="none" stroke="${AZ.green}" stroke-width="2"/>`+azNote(170,262,'방향 차이','green',11);
+  g+=`<line x1="288" y1="122" x2="318" y2="96" stroke="${AZ.violet}" stroke-width="2" marker-end="url(#ah-mute)"/>`+azNote(250,92,'차선(좌우 위치)','mute',11)+azNote(250,106,'1.5~4초마다 바꿈','mute',11);
+  g+=`<path d="M330 70 a 60 60 0 0 1 80 40" fill="none" stroke="${AZ.volt}" stroke-width="2"/>`+azNote(360,64,'34칸 앞 커브','volt',11);
+  g+=azNote(36,425,'목표점을 향해 핸들을 꺾고, 앞의 커브가 급하면 미리 속도를 줄여요.','paper',12);
+  // rules
+  const R=[['1. 목표점 고르기','현재 칸에서 앞으로 (10 + 속도×0.35)칸,\n자기 차선만큼 옆으로 옮긴 지점','hot'],['2. 조향','조향 = 목표점 방향과 내 방향의 차이 × 2.4\n(−1 ~ +1로 자름)','green'],['3. 감속','34칸 앞 커브가 63°보다 급하면 가속 끄기\n92°보다 급하면 브레이크','volt'],['4. 아이템','실드는 바로, 터보는 직선에서, 오일은 뒤에\n쫓아오는 로봇이 있을 때, 드론은 앞에 있을 때','cool'],['5. 실력 보정','로봇마다 실력 93~98.5% 속도\n나보다 70칸 앞서면 0.9배, 뒤처지면 1.07배','violet']];
+  R.forEach(([t,s,c],i)=>g+=azBox(470,20+i*86,470,74,t,s,c));
+  g+=`<rect x="20" y="460" width="920" height="64" rx="12" fill="rgba(183,148,246,.08)" stroke="${AZ.line}"/>`;
+  g+=azNote(36,486,'핵심 원리','violet',13);
+  g+=azNote(36,508,'학습형 인공지능이 아니라 “목표점 따라가기 + 커브 감속 + 실력 보정” 규칙이에요. 그래서 가볍고, 매번 조금씩 다르게 달려요.','paper',12.5);
+  return azSvg(g,540);
+}
+
+function azDrift(){
+  let g='';
+  g+=azNote(20,24,'드리프트와 부스트','paper',14);
+  g+=azBox(20,40,170,70,'보통 주행','조향 = 입력 × 핸들링\n속도가 빠를수록 덜 꺾임','cool');
+  g+=azBox(240,40,220,70,'드리프트 중','옆으로 미끄러지며 회전\n꺾는 쪽을 누르면 1.45배 빨리 충전','volt');
+  g+=azArrow(192,75,238,75,'volt','시작');
+  g+=azNote(20,128,'시작 조건: 드리프트 키 + 조향 + 속도 14 이상 (풀밭 제외)','mute',11);
+  // gauge
+  const gx=40,gy=170,gw=400;
+  g+=azNote(gx,gy-10,'충전 게이지 (초 단위로 쌓임)','mute',12);
+  g+=`<rect x="${gx}" y="${gy}" width="${gw*0.95/2.1}" height="22" fill="${AZ.paper}" opacity=".85"/><rect x="${gx+gw*0.95/2.1}" y="${gy}" width="${gw*0.95/2.1}" height="22" fill="${AZ.cool}"/><rect x="${gx+gw*1.9/2.1}" y="${gy}" width="${gw*0.2/2.1}" height="22" fill="#FF8A3A"/>`;
+  [[0,'0'],[0.95,'0.95'],[1.9,'1.9']].forEach(([v,t])=>{const x=gx+gw*v/2.1;g+=`<line x1="${x}" y1="${gy-4}" x2="${x}" y2="${gy+28}" stroke="${AZ.mute}"/>`+azNote(x,gy+42,t,'mute',11,'middle')});
+  g+=azNote(gx+gw*.23,gy+60,'흰 불꽃: 부스트 없음','paper',11.5,'middle')+azNote(gx+gw*.67,gy+60,'파랑: 0.6초 부스트','cool',11.5,'middle')+azNote(gx+gw*.96,gy+80,'주황: 1.15초','hot',11.5,'middle');
+  g+=azBox(20,264,440,92,'키를 놓는 순간','부스트 동안 최고속도 1.42배, 강하게 가속\n로봇 ‘너트’는 부스트 시간 1.35배\n가속 패드: 0.9초, 터보 아이템: 1.5초','hot');
+  g+=azPath('M460 90 C 486 90, 486 304, 462 304','hot');g+=azNote(476,196,'놓기','hot',11,'end');
+  // ranking
+  g+=azNote(500,24,'순위·랩·리타이어','paper',14);
+  g+=azBox(500,40,440,70,'진행도 = 랩 × 640 + 지금 칸','진행도가 큰 순서대로 1위부터 6위\n골인한 로봇은 골인 시간 순으로 맨 위','volt');
+  g+=azBox(500,122,440,70,'랩 넘김 감지','칸 번호가 512 이상에서 128 미만으로 넘어가면 랩 +1\n(거꾸로 넘으면 랩 −1)','cool');
+  g+=azBox(500,204,440,62,'1위 골인','3랩을 끝낸 첫 로봇 → 30초 카운트다운 시작','green');
+  g+=azBox(500,278,440,74,'30초가 지나면','아직 못 들어온 로봇은 모두 리타이어\n내가 먼저 골인하면 남은 로봇은 예상 시간으로 결과 계산','hot');
+  g+=azArrow(720,110,720,120,'mute');g+=azArrow(720,192,720,202,'mute');g+=azArrow(720,266,720,276,'mute');
+  // item odds
+  const tb=[['1위',[['oil',5],['shield',3],['drone',2]]],['2~3위',[['oil',2],['drone',4],['turbo',3],['shield',2]]],['4~6위',[['drone',4],['turbo',6],['shield',1]]]];
+  const ic={oil:AZ.violet,shield:AZ.cool,drone:AZ.hot,turbo:AZ.volt},nm={oil:'오일',shield:'실드',drone:'드론',turbo:'터보'};
+  g+=azNote(20,392,'순위에 따라 에너지 큐브에서 나오는 아이템 확률 (뒤처질수록 공격·가속 아이템이 많이 나와요)','mute',12);
+  tb.forEach(([lab,rows],r)=>{const y=408+r*36,tot=rows.reduce((a,b)=>a+b[1],0);let x=90;g+=azNote(20,y+17,lab,'paper',12);
+    rows.forEach(([k,w])=>{const ww=840*w/tot;g+=`<rect x="${x}" y="${y}" width="${ww-2}" height="24" rx="4" fill="${ic[k]}" opacity=".85"/><text x="${x+8}" y="${y+16}" fill="#12152A" font-size="11.5" font-weight="700">${nm[k]} ${Math.round(w/tot*100)}%</text>`;x+=ww})});
+  return azSvg(g,520);
+}
+const AZ_TABS=[['overview','전체 구조',azOverview],['track','트랙 생성',azTrack],['ai','AI 로봇',azAI],['drift','드리프트·순위',azDrift]];
+let azTab='overview',azWasPaused=false;
+function renderAnalysis(){
+  $('#azTabs').querySelectorAll('button').forEach(b=>b.setAttribute('aria-selected',String(b.dataset.t===azTab)));
+  $('#azBody').innerHTML=AZ_TABS.find(t=>t[0]===azTab)[2]();
+}
+function openAnalysis(){
+  if(state==='race'||state==='countdown'){if(!paused){azWasPaused=false;paused=true}else azWasPaused=true;$('#pauseMenu').hidden=true}
+  $('#analysis').hidden=false;renderAnalysis();$('#azClose').focus();
+}
+function closeAnalysis(){
+  $('#analysis').hidden=true;
+  if(state==='race'||state==='countdown'){$('#pauseMenu').hidden=false;paused=true}
+}
+$('#azTabs').innerHTML=AZ_TABS.map(([id,lab])=>`<button role="tab" data-t="${id}" aria-selected="false">${lab}</button>`).join('');
+$('#azTabs').querySelectorAll('button').forEach(b=>b.onclick=()=>{azTab=b.dataset.t;renderAnalysis()});
+$('#azClose').onclick=closeAnalysis;
+$('#analysis').addEventListener('click',e=>{if(e.target.id==='analysis')closeAnalysis()});
+$('#azOpenMenu').onclick=openAnalysis;$('#azOpenPause').onclick=openAnalysis;
 
 /* ---------- Intro ---------- */
 let introV='c';
